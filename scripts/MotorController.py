@@ -30,9 +30,9 @@ class MotorController:
         rospy.spin()
 
     # Method for handling new messages received on 'SystemCommands'
-    def scCallback(data):
+    def scCallback(self, data):
         # Parse data to get parameters
-        datalist = data.split(" ")
+        datalist = data.data.split(" ")
         if(datalist[0] == "SetMotor"):
             print("Set Motor function requested")
             if (len(datalist)==5 and datalist[1].isdigit() and datalist[2].isdigit() and datalist[3].isdigit() and datalist[4].isdigit()):
