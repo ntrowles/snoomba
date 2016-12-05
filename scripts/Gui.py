@@ -43,12 +43,12 @@ class Gui:
         self.map.grid(row=1, column=0)
         
 
-        #self.label = Tkinter.Label(window, text="Snoomba GUI")
-        #self.label.pack()
+        self.label = Tkinter.Label(window, text="Snoomba GUI")
+        self.label.grid(row=0, column=1)
         
         
-        #self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
-        #self.testButton.pack()
+        self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
+        self.testButton.grid(row=1, column=1)
         
         
         # Start window
