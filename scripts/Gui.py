@@ -3,6 +3,10 @@
 import Tkinter
 import rospy
 import std_msgs
+import Image
+from PIL import ImageTk
+import urllib
+from cStringIO import StringIO
 from GuiLayout import GuiLayout
 
 #import GuiListener
@@ -28,13 +32,23 @@ class Gui:
         # self.layout = GuiLayout(window, self)
         self.window = window
         window.title("Snoomba GUI")
+
         
-        self.label = Tkinter.Label(window, text="Snoomba GUI")
-        self.label.pack()
+        self.topleftframe = Tkinter.Frame(window, bg="red", height=360, width=480)
+        self.topleftframe.grid(row=0, column=0)
+
+        image = self.googleApiRetrieveStaticImage(42.2742,-71.8082,480, 360, 19)
+        photoImage = ImageTk.PhotoImage(image)
+        self.map = Tkinter.Label(image=photoImage)
+        self.map.grid(row=1, column=0)
+        
+
+        #self.label = Tkinter.Label(window, text="Snoomba GUI")
+        #self.label.pack()
         
         
-        self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
-        self.testButton.pack()
+        #self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
+        #self.testButton.pack()
         
         
         # Start window
@@ -46,18 +60,29 @@ class Gui:
         # Sustain node
         # rospy.spin()
 
-
-
     def miCallback(self, data):
         rospy.loginfo("Map-Info received" + data.data)
-         
-
-    def closeNode(self):
-        rospy.signal_shutdown("Application Closed")
 
     def scPubMsg(self, msg="SetMotor 1 0 40 30"):
         print("Button Pressed!")
         self.scPub.publish(msg)
+
+    def googleApiRetrieveStaticImage(self, lat, lon, width, height, zoom):
+        urlList = []
+        urlList.append("https://maps.googleapis.com/maps/api/staticmap?center=")
+        urlList.append(str(lat))
+        urlList.append(",")
+        urlList.append(str(lon))
+        urlList.append("&size=")
+        urlList.append(str(width))
+        urlList.append("x")
+        urlList.append(str(height))
+        urlList.append("&zoom=")
+        urlList.append(str(zoom))
+        url = ''.join(urlList)
+        buffer = StringIO(urllib.urlopen(url).read())
+        image = Image.open(buffer)
+        return image
 
 if __name__ == '__main__':
     gui = Gui()
