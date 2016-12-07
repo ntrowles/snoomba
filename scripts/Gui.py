@@ -51,7 +51,7 @@ class Gui:
         photoImage = ImageTk.PhotoImage(image)
 
         # Draw picture
-        self.canvas.create_image((240,180), image=photoImage, tags="static")
+        self.mapPic = self.canvas.create_image((240,180), image=photoImage, tags="static")
 
         # Create objects to drag
         self._drag_data = {"x": 0, "y": 0, "item": None}
@@ -106,7 +106,10 @@ class Gui:
         self.gps_submit = Tkinter.Button(self.gpsframe, text="Search GPS Coordinates", command=self.latlonButtonClick)
         
         self.gps_submit.grid(row=1, column = 3, rowspan=2)
-        
+
+
+        #Console Frame
+        #self.consoleframe = Tkinter.Frame(window, bg="black", height = 360, width = 480)
 
         # ------------------------
         # Image in label
@@ -249,9 +252,28 @@ class Gui:
         # Replace background picture with new picture given address, update self.pic_gps_coords
 
     def latlonButtonClick(self):
-        print("unimplemented method: latlon Button Click")
+        #print("unimplemented method: latlon Button Click")
 
         # Replace background picutre with new picture given latitude and longitude, update self.pic_gps_coords
+        latStr = self.gps_lat_entry.get()
+        lonStr = self.gps_lon_entry.get()
+
+        #TODO error handling for non float entries
+        lat = float(latStr)
+        lon = float(lonStr)
+        print("lat: %d, lon: %d", lat, lon)
+        self.updateImage(lat, lon)
+        
+    def updateImage(self, lat, lon):
+        self.canvas.delete(self.mapPic)
+
+        # Google maps image
+        image = self.googleApiRetrieveStaticImage(lat, lon,480, 360, 19)
+        photoImage = ImageTk.PhotoImage(image)
+
+        # Draw picture
+        self.mapPic = self.canvas.create_image((240,180), image=photoImage, tags="static")
+        print("picture drawn")
         
 
 if __name__ == '__main__':
