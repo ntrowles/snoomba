@@ -34,8 +34,9 @@ class Gui:
         window.title("Snoomba GUI")
 
         # Create top left frame for GUI (user selected map)
-        self.topleftframe = Tkinter.Frame(window, bg="red", height=360, width=480)
-        self.topleftframe.grid(row=0, column=2)
+        #self.topleftframe = Tkinter.Frame(window, bg="red", height=360, width=480)
+        #self.topleftframe.grid(row=0, column=2)
+
         # Create canvas in frame
         self.canvas = Tkinter.Canvas(window, width=480, height=360)
         self.canvas.grid(row=0, column=0)
@@ -64,19 +65,58 @@ class Gui:
         self.canvas.tag_bind("fenceCorner", "<B1-Motion>", self.onCornerMotionEvent)
         self.canvas.tag_bind("fenceCorner", "<ButtonRelease-1>", self.onCornerReleaseEvent)
 
-        # Create lines
-        self.drawLines()
+        # Create fill and lines
+        self.fillFence()
+        #self.drawLines()
 
+
+##        #Add input text box for selecting address
+##        self.addressframe = Tkinter.Frame(window, bg="red", height=60, width=480)
+##        self.addressframe.grid(row=1, column=0)
+
+        self.gpsframe = Tkinter.Frame(window, bg="blue", height = 200, width = 480)
+        self.gpsframe.grid(row =1, column=0)
+        
+        self.address_prompt = Tkinter.Text(self.gpsframe, height=1, width=20)
+        self.address_prompt.grid(row=0, column=0)
+        self.address_prompt.insert(Tkinter.END, "Enter Address: ")
+        
+        self.address_entry = Tkinter.Entry(self.gpsframe)
+        self.address_entry.grid(row = 0, column = 1, columnspan = 2)
+        
+        self.address_submit = Tkinter.Button(self.gpsframe, text="Search Address", command=self.addressButtonClick)
+        self.address_submit.grid(row=0, column = 3)
+        
+        #Add input text box for selecting gps coordinates
+
+        
+        self.gps_lat_prompt = Tkinter.Text(self.gpsframe, height=1, width=20)
+        self.gps_lat_prompt.grid(row=1, column=0)
+        self.gps_lat_prompt.insert(Tkinter.END, "Enter Latitude: ")
+        
+        self.gps_lat_entry = Tkinter.Entry(self.gpsframe)
+        self.gps_lat_entry.grid(row = 1, column = 1, columnspan = 2)
+        
+        self.gps_lon_prompt = Tkinter.Text(self.gpsframe, height=1, width=20)
+        self.gps_lon_prompt.grid(row=2, column=0)
+        self.gps_lon_prompt.insert(Tkinter.END, "Enter Longitude: ")
+        
+        self.gps_lon_entry = Tkinter.Entry(self.gpsframe)
+        self.gps_lon_entry.grid(row = 2, column = 1, columnspan = 2)
+        self.gps_submit = Tkinter.Button(self.gpsframe, text="Search GPS Coordinates", command=self.latlonButtonClick)
+        
+        self.gps_submit.grid(row=1, column = 3, rowspan=2)
+        
+
+        # ------------------------
         # Image in label
-        self.map = Tkinter.Label(image=photoImage)
-        self.map.grid(row=1, column=0)
-        
-
-        self.label = Tkinter.Label(window, text="Snoomba GUI")
-        self.label.grid(row=0, column=1)        
-        
-        self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
-        self.testButton.grid(row=1, column=1)
+        #self.map = Tkinter.Label(image=photoImage)
+        #self.map.grid(row=1, column=0)
+        #self.label = Tkinter.Label(window, text="Snoomba GUI")
+        #self.label.grid(row=0, column=1)        
+        #self.testButton = Tkinter.Button(window, text="Test", command=self.scPubMsg)
+        #self.testButton.grid(row=1, column=1)
+        #------------------------------
         
         # Start window
         window.mainloop()
@@ -113,7 +153,7 @@ class Gui:
 
     # The following four functions are modified from code found at http://stackoverflow.com/questions/6740855/board-drawing-code-to-move-an-oval/6759351#6789351
     def _create_token(self, x, y):
-        return self.canvas.create_oval(x-5, y-5, x+5, y+5, outline="black", fill="black", tags="fenceCorner")
+        return self.canvas.create_oval(x-7, y-7, x+7, y+7, outline="black", fill="black", tags="fenceCorner")
 
     def onCornerClickEvent(self, event):
         #print(self._drag_data["item"].tag_names)
@@ -130,6 +170,10 @@ class Gui:
             print("Incorrectly selected item glitch")
             return
 
+        # move lines
+        self.refillFence()
+        #self.dragLines()
+
         # Prevent from moving beyond boundaries
         if (event.x >= self._canvas_x_min+5 and event.x <= self._canvas_x_max-5):
             delta_x = event.x - self._drag_data["x"]
@@ -145,13 +189,16 @@ class Gui:
         self._drag_data["x"] = event.x
         self._drag_data["y"] = event.y
 
-        # move lines
-        self.dragLines()
+
 
     def onCornerReleaseEvent(self, event):
         self._drag_data["item"] = "none"
         self._drag_data["x"] = 0
         self._drag_data["y"] = 0
+
+        # Move lines (temporary, should be updated during onCornerMotion)
+        #self.refillFence()
+        #self.dragLines()
 
     def drawLines(self):
         self._lines = []
@@ -166,7 +213,28 @@ class Gui:
         # print("partially implemented method")
 
     def dragLines(self):
-        print("unimplemented method")
+        for line in self._lines:
+            self.canvas.delete(line)
+        self.drawLines()
+        #print("unimplemented method")
+
+    def fillFence(self):
+        self._triangles = []
+        ## Create 012 Triangle
+        corner0Coord = self.findCenterCoords(self.canvas.coords(self._corners[0]))
+        corner1Coord = self.findCenterCoords(self.canvas.coords(self._corners[1]))
+        corner2Coord = self.findCenterCoords(self.canvas.coords(self._corners[2]))
+        #self._triangles.append(self.canvas.create_polygon((corner0Coord, corner1Coord, corner2Coord), fill="yellow", disableoutline=True))
+        ## Create 023 Triangle
+        corner3Coord = self.findCenterCoords(self.canvas.coords(self._corners[3]))
+        #self._triangles.append(self.canvas.create_polygon((corner0Coord, corner2Coord, corner3Coord), fill="yellow", disableoutline=True))
+        # Create polygon
+        self._triangles.append(self.canvas.create_polygon((corner0Coord, corner1Coord, corner2Coord, corner3Coord), fill="yellow", outline="black"))
+          
+    def refillFence(self):
+        for triangle in self._triangles:
+            self.canvas.delete(triangle)
+        self.fillFence()
 
     def findCenterCoords(self, coords):
         x0 = coords[0]
@@ -174,6 +242,16 @@ class Gui:
         x1 = coords[2]
         y1 = coords[3]
         return (x0+x1)/2, (y0+y1)/2
+
+    def addressButtonClick(self):
+        print("unimplemented method: address Button Click")
+
+        # Replace background picture with new picture given address, update self.pic_gps_coords
+
+    def latlonButtonClick(self):
+        print("unimplemented method: latlon Button Click")
+
+        # Replace background picutre with new picture given latitude and longitude, update self.pic_gps_coords
         
 
 if __name__ == '__main__':
