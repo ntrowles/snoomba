@@ -55,16 +55,17 @@ class Gui:
         # Create objects to drag
         self._drag_data = {"x": 0, "y": 0, "item": None}
         self._corners = []
-        self._corners.append(self._create_token(100,100))
-        self._corners.append(self._create_token(100,110))
-        self._corners.append(self._create_token(110,100))
-        self._corners.append(self._create_token(110,110))
+        self._corners.append(self._create_token(200,140))
+        self._corners.append(self._create_token(200,220))
+        self._corners.append(self._create_token(280,220))
+        self._corners.append(self._create_token(280,140))
 
         self.canvas.tag_bind("fenceCorner", "<ButtonPress-1>", self.onCornerClickEvent)
         self.canvas.tag_bind("fenceCorner", "<B1-Motion>", self.onCornerMotionEvent)
         self.canvas.tag_bind("fenceCorner", "<ButtonRelease-1>", self.onCornerReleaseEvent)
 
-        #self.canvas.bind("<B1-Motion>", self.clickEvent)
+        # Create lines
+        self.drawLines()
 
         # Image in label
         self.map = Tkinter.Label(image=photoImage)
@@ -144,14 +145,35 @@ class Gui:
         self._drag_data["x"] = event.x
         self._drag_data["y"] = event.y
 
+        # move lines
+        self.dragLines()
+
     def onCornerReleaseEvent(self, event):
         self._drag_data["item"] = "none"
         self._drag_data["x"] = 0
         self._drag_data["y"] = 0
 
     def drawLines(self):
-        self.canvas.create_line(self.canvas.coords(self._corners[0]), self.canvas.coords(self._corners[1]))
-        print("partially implemented method")
+        self._lines = []
+        numCorners = len(self._corners)
+        for i in range(0, numCorners-1):
+            print(self.canvas.coords(self._corners[i]))
+            print(self.canvas.coords(self._corners[i+1]))
+            print(len(self.canvas.coords(self._corners[i])))
+            self._lines.append(self.canvas.create_line(self.findCenterCoords(self.canvas.coords(self._corners[i])), self.findCenterCoords(self.canvas.coords(self._corners[i+1]))))
+        self._lines.append(self.canvas.create_line(self.findCenterCoords(self.canvas.coords(self._corners[numCorners-1])), self.findCenterCoords(self.canvas.coords(self._corners[0]))))
+
+        # print("partially implemented method")
+
+    def dragLines(self):
+        print("unimplemented method")
+
+    def findCenterCoords(self, coords):
+        x0 = coords[0]
+        y0 = coords[1]
+        x1 = coords[2]
+        y1 = coords[3]
+        return (x0+x1)/2, (y0+y1)/2
         
 
 if __name__ == '__main__':
