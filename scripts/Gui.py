@@ -27,6 +27,8 @@ class Gui:
         # Create Window
         window = Tkinter.Tk()
         window.geometry('{}x{}'.format(1024, 768))
+        # Enforce window size - http://www.stackoverflow.com/questions/563827/hot-to-stop-tkinter-frame-from-shrinking-to-fit-its-contents
+        # FEATURE make dynamic eventually, temporary fix
         
         # Initialize GUI
         # self.layout = GuiLayout(window, self)
@@ -46,8 +48,10 @@ class Gui:
         self._canvas_x_max=480
         self._canvas_y_max=360
 
+        # Initialize self.zoomval to be 19
+        self.zoomval = 19
         # Google maps image
-        image = self.googleApiRetrieveStaticImage(42.2742,-71.8082,480, 360, 19)
+        image = self.googleApiRetrieveStaticImage(42.2742,-71.8082,480, 360, self.zoomval)
         photoImage = ImageTk.PhotoImage(image)
 
         # Draw picture
@@ -74,8 +78,9 @@ class Gui:
 ##        self.addressframe = Tkinter.Frame(window, bg="red", height=60, width=480)
 ##        self.addressframe.grid(row=1, column=0)
 
-        self.gpsframe = Tkinter.Frame(window, bg="blue", height = 200, width = 480)
+        self.gpsframe = Tkinter.Frame(window, bg="orange", height = 200, width = 480)
         self.gpsframe.grid(row =1, column=0)
+        self.gpsframe.grid_propagate(0)
         
         self.address_prompt = Tkinter.Text(self.gpsframe, height=1, width=20)
         self.address_prompt.grid(row=0, column=0)
@@ -108,9 +113,58 @@ class Gui:
         self.gps_submit.grid(row=1, column = 3, rowspan=2)
 
 
-        #Console Frame
-        #self.consoleframe = Tkinter.Frame(window, bg="black", height = 360, width = 480)
 
+
+        #Map Editor Frame
+        self.mapeditorframe = Tkinter.Frame(window, bg="red", height = 560, width = 200)
+        self.mapeditorframe.grid(row=0, column=1, rowspan=2)
+        self.mapeditorframe.grid_propagate(0)
+
+        # Zoom in button
+        self.me_zoominbutton = Tkinter.Button(self.mapeditorframe, text="Zoom in", command=self.zoominButtonClick)
+        self.me_zoominbutton.grid(row=0, column=0)
+
+        # Zoom out button
+        self.me_zoomoutbutton = Tkinter.Button(self.mapeditorframe, text="Zoom out", command = self.zoomoutButtonClick)
+        self.me_zoomoutbutton.grid(row=1, column=0)
+
+        # Zoom number display
+        self.me_zoomvaldisp = Tkinter.Text(self.mapeditorframe, height=1, width = 2)
+        self.me_zoomvaldisp.grid(row=2, column=0)
+        self.me_zoomvaldisp.insert(Tkinter.END, str(self.zoomval))
+
+        # Console Frame
+        self.consoleframe = Tkinter.Frame(window, bg="black", height=560, width = 344)
+        self.consoleframe.grid(row=0, column=2, rowspan=2)
+        self.consoleframe.grid_propagate(0)
+
+        # Command History
+        self.cf_history_text = Tkinter.Text(self.consoleframe, height = 24, width = 36, bg="black")
+        self.cf_history_text.grid(row=0, column=0, columnspan = 2)
+
+        # Command Line Entry
+        self.cf_command_entry = Tkinter.Entry(self.consoleframe, bg="black")
+        self.cf_command_entry.grid(row=1, column=0)
+
+        # Command Line Button
+        self.cf_command_button = Tkinter.Button(self.consoleframe, text="Enter Command", command=self.commandEntryButtonClick)
+        self.cf_command_button.grid(row=1, column=1)
+
+
+        # System Command Module
+        self.systemframe = Tkinter.Frame(window, bg="blue", height=250, width=480)
+        self.systemframe.grid(row = 2, column = 0)
+        self.systemframe.grid_propagate(0)
+
+        # Start Button
+        self.sys_start_button = Tkinter.Button(self.systemframe, text="Start", bg="green", command=self.sysStartButtonClick)
+        self.sys_start_button.grid(row=0, column=0)
+
+        # Stop Button
+        self.sys_stop_button = Tkinter.Button(self.systemframe, text="Stop", bg="red", command=self.sysStopButtonClick)
+        self.sys_stop_button.grid(row=1, column=0)
+        
+        
         # ------------------------
         # Image in label
         #self.map = Tkinter.Label(image=photoImage)
@@ -259,8 +313,12 @@ class Gui:
         lonStr = self.gps_lon_entry.get()
 
         #TODO error handling for non float entries
-        lat = float(latStr)
-        lon = float(lonStr)
+        try:
+            lat = float(latStr)
+            lon = float(lonStr)
+        except ValueError:
+            print("Lat or Lon value not entered correctly")
+            return
         print("lat: %d, lon: %d", lat, lon)
         self.updateImage(lat, lon)
         
@@ -268,13 +326,38 @@ class Gui:
         self.canvas.delete(self.mapPic)
 
         # Google maps image
-        image = self.googleApiRetrieveStaticImage(lat, lon,480, 360, 19)
+        image = self.googleApiRetrieveStaticImage(lat, lon,480, 360, self.zoomval)
         photoImage = ImageTk.PhotoImage(image)
 
         # Draw picture
         self.mapPic = self.canvas.create_image((240,180), image=photoImage, tags="static")
         print("picture drawn")
-        
+
+    def zoominButtonClick(self):
+        # TODO implement method
+        print("unimplemented method: zoominButtonClick(self))")
+
+    def zoomoutButtonClick(self):
+        # TODO implement method
+        print("unimplemented mehtod: zoomoutButtonClick(self))")
+
+    def commandEntryButtonClick(self):
+        # TODO implement method
+        print("unimplemented mehtod: commandEntryButtonClick(self))")
+
+    def sysStartButtonClick(self):
+        # TODO implement method
+        print("unimplemented mehtod: sysStartButtonClick(self))")
+
+    def sysStopButtonClick(self):
+        # TODO implement method
+        print("unimplemented mehtod: sysStopButtonClick(self))")
+
+    def appendToLog(self):
+        # TODO implement method
+        print("unimplemented mehtod: appendToLog(self))")
+
+    
 
 if __name__ == '__main__':
     gui = Gui()
