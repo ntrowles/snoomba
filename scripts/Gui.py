@@ -6,11 +6,26 @@ import std_msgs
 import Image
 from PIL import ImageTk
 import urllib
+
+# from http://stackoverflow.com/questions/7490491/capture-embedded-google-map-image-with-python-without-using-a-browser
+import Image, urllib, StringIO
+from math import log, exp, tan, atan, pi, ceil
+
 from cStringIO import StringIO
 from GuiLayout import GuiLayout
 
+import requests
+import json
+
 #import GuiListener
 #import GuiTalker
+
+
+EARTH_RADIUS = 6378137
+EQUATOR_CIRCUMFERENCE = 2 * pi * EARTH_RADIUS
+INITIAL_RESOLUTION = EQUATOR_CIRCUMFERENCE / 256.0
+ORIGIN_SHIFT = EQUATOR_CIRCUMFERENCE / 2.0
+
 
 class Gui:
     def __init__ (self):
@@ -51,6 +66,8 @@ class Gui:
         # Initialize self.zoomval to be 19
         self.zoomval = 19
         # Google maps image
+        self.latval = 42.2742
+        self.lonval = -71.8082
         image = self.googleApiRetrieveStaticImage(42.2742,-71.8082,480, 360, self.zoomval)
         photoImage = ImageTk.PhotoImage(image)
 
@@ -191,6 +208,9 @@ class Gui:
         print("Button Pressed!")
         self.scPub.publish(msg)
 
+    def biPubMsg(self, msg="No Message"):
+        self.biPub.publish(msg)
+
     def googleApiRetrieveStaticImage(self, lat, lon, width, height, zoom):
         urlList = []
         urlList.append("https://maps.googleapis.com/maps/api/staticmap?center=")
@@ -203,10 +223,45 @@ class Gui:
         urlList.append(str(height))
         urlList.append("&zoom=")
         urlList.append(str(zoom))
+        urlList.append("&maptype=")
+        urlList.append("hybrid")
         url = ''.join(urlList)
+        print(url)
         buffer = StringIO(urllib.urlopen(url).read())
         image = Image.open(buffer)
+        print(image)
         return image
+
+    def googleApiRetrieveCoords(self, address):
+        urlList=[]
+        urlList.append("https://maps.google.com/maps/api/geocode/json?address=")
+
+        address_partlist = address.split(" ")
+        address_query_url = "+".join(address_partlist)
+        urlList.append(address_query_url)
+        url = ''.join(urlList)
+        print(url)
+        #TODO make api call to url
+        response = requests.get(url)
+        print(response.status_code)
+        json_data = response.json()
+        json_text = response.text
+        print(json_data)
+        print(json_text)
+        json_dict = json.loads(json_text)
+        print(json_dict["status"])
+        results = json_dict["results"]
+        results0 = results[0]
+        geometry = results0["geometry"]
+        location = geometry["location"]
+        lat = location["lat"]
+        lon = location["lng"]
+        print("lat: " + str(lat) + ", lon: " + str(lon)) 
+        return (lat, lon)
+
+    def updateMapPicFromAddress(self, address):
+        (lat, lon) = self.googleApiRetrieveCoords(address)
+        self.updateImage(lat, lon)
 
     # The following four functions are modified from code found at http://stackoverflow.com/questions/6740855/board-drawing-code-to-move-an-oval/6759351#6789351
     def _create_token(self, x, y):
@@ -249,10 +304,18 @@ class Gui:
 
 
     def onCornerReleaseEvent(self, event):
+        
+        gps_coords = self.pixelstogpscoord(event.x, event.y)
+        print(gps_coords)
+        msg="UpdateCorner " + str(self._corners.index(self._drag_data["item"])) + " " + str(gps_coords[0]) + " " + str(gps_coords[1])
+        print("Publishing Message on 'BoundaryInfo'  - " + msg)
+        self.biPubMsg(msg)
+
+
         self._drag_data["item"] = "none"
         self._drag_data["x"] = 0
         self._drag_data["y"] = 0
-
+        
         # Move lines (temporary, should be updated during onCornerMotion)
         #self.refillFence()
         #self.dragLines()
@@ -301,8 +364,10 @@ class Gui:
         return (x0+x1)/2, (y0+y1)/2
 
     def addressButtonClick(self):
-        print("unimplemented method: address Button Click")
-
+        #print("unimplemented method: address Button Click")
+        address = self.address_entry.get()
+        #self.googleApiRetrieveCoords(address)
+        self.updateMapPicFromAddress(address)
         # Replace background picture with new picture given address, update self.pic_gps_coords
 
     def latlonButtonClick(self):
@@ -321,25 +386,53 @@ class Gui:
             return
         print("lat: %d, lon: %d", lat, lon)
         self.updateImage(lat, lon)
+        self.latval = lat;
+        self.lonval = lon;
         
     def updateImage(self, lat, lon):
-        self.canvas.delete(self.mapPic)
+        
 
         # Google maps image
         image = self.googleApiRetrieveStaticImage(lat, lon,480, 360, self.zoomval)
         photoImage = ImageTk.PhotoImage(image)
+        self.latval = lat
+        self.lonval = lon
+
+        
 
         # Draw picture
-        self.mapPic = self.canvas.create_image((240,180), image=photoImage, tags="static")
+        #newMapPic = self.canvas.create_image((240,180), image=photoImage, tags="static")
+        #self.canvas.delete(self.mapPic)
+        #self.mapPic = newMapPic
+
+        # stackoverflow.com/questions/19838972/python-tkinter-update-image-in-canvas
+        self.photoImage = photoImage
+        self.canvas.itemconfig(self.mapPic, image = self.photoImage)
+        #self.canvas.update()
+        
         print("picture drawn")
+
+        #self.canvas.delete(self.mapPic)
 
     def zoominButtonClick(self):
         # TODO implement method
-        print("unimplemented method: zoominButtonClick(self))")
+        # print("unimplemented method: zoominButtonClick(self))")
+        self.zoomval = self.zoomval+1;
+        self.updateImage(self.latval, self.lonval)
+        self.me_zoomvaldisp.delete("1.0", Tkinter.END)
+        self.me_zoomvaldisp.insert(Tkinter.END, str(self.zoomval))
+        print("New zoom value")
+        print(self.zoomval)
 
     def zoomoutButtonClick(self):
         # TODO implement method
-        print("unimplemented mehtod: zoomoutButtonClick(self))")
+        # print("unimplemented mehtod: zoomoutButtonClick(self))")
+        self.zoomval = self.zoomval-1;
+        self.updateImage(self.latval, self.lonval)
+        self.me_zoomvaldisp.delete("1.0", Tkinter.END)
+        self.me_zoomvaldisp.insert(Tkinter.END, str(self.zoomval))
+        print("New zoom value: ")
+        print(self.zoomval)
 
     def commandEntryButtonClick(self):
         # TODO implement method
@@ -357,7 +450,67 @@ class Gui:
         # TODO implement method
         print("unimplemented mehtod: appendToLog(self))")
 
+###########################################
+
+    def pixelstogpscoord(self, px, py):
+        # Calculate GPS coordinates
+        (px_center, py_center) = latlontopixels(self.latval, self.lonval, self.zoomval)
+        centeroffset_x = px - ((self._canvas_x_min+self._canvas_x_max)/2)
+        centeroffset_y = py - ((self._canvas_y_min+self._canvas_y_max)/2)
+        px_actual = px_center - centeroffset_x
+        py_actual = py_center - centeroffset_y
     
 
+        gps_differential = pixelstolatlon(px_actual, py_actual, self.zoomval)
+        return gps_differential
+        #upperleft_gps_coords = 
+
+        # Set boundaries for canvas
+        #self._canvas_x_min=0
+        #self._canvas_y_min=0
+        #self._canvas_x_max=480
+        #self._canvas_y_max=360
+
+        # Initialize self.zoomval to be 19
+        #self.zoomval = 19
+        # Google maps image
+        #self.latval = 42.2742
+        #self.lonval = -71.8082
+
+#    def latlontopixels(lat, lon, zoom):
+#        mx = (latlon
+
+# from http://stackoverflow.com/questions/7490491/capture-embedded-google-map-image-with-python-without-using-a-browser
+###########################################
+
+
+
+
+def latlontopixels(lat, lon, zoom):
+    mx = (lon * ORIGIN_SHIFT) / 180.0
+    my = log(tan((90 + lat) * pi/360.0))/(pi/180.0)
+    my = (my * ORIGIN_SHIFT) /180.0
+    res = INITIAL_RESOLUTION / (2**zoom)
+    px = (mx + ORIGIN_SHIFT) / res
+    py = (my + ORIGIN_SHIFT) / res
+    return px, py
+
+def pixelstolatlon(px, py, zoom):
+    res = INITIAL_RESOLUTION / (2**zoom)
+    mx = px * res - ORIGIN_SHIFT
+    my = py * res - ORIGIN_SHIFT
+    lat = (my / ORIGIN_SHIFT) * 180.0
+    lat = 180 / pi * (2*atan(exp(lat*pi/180.0)) - pi/2.0)
+    lon = (mx / ORIGIN_SHIFT) * 180.0
+    return lat, lon
+
+
+############################################
+
 if __name__ == '__main__':
+    gps_differential = pixelstolatlon(100, 10, 18)
+    print("gps differential: " + str(gps_differential))
+
+    #Spawn GUI
     gui = Gui()
+    
