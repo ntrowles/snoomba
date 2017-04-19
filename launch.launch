@@ -1,0 +1,34 @@
+<launch>
+    <!-- ENV VARIABLES -->
+    <env-loader name="ROS_LOG_DIR" value="/home/nick/Ros_Logging/" />
+    <env-loader name="ROS_PACKAGE_PATH" value="$(env ROS_PACKAGE_PATH):~/catkin_ws/" />
+
+    <!-- NODES -->
+<!--
+    <node name="MotorController" pkg="snoomba" type="MotorController.py" respawn="true">
+    </node>
+-->
+    <node name="GpsNode" pkg="snoomba" type="GpsNode.py" respawn="true">
+    </node>
+<!--
+    <node name="LidarNode" pkg="snoomba" type="LidarNode.py" respawn="true">
+    </node>
+-->
+    <node name="Mapper" pkg="snoomba" type="Mapper.py" respawn="true">
+    </node>
+
+    <node name="Gui" pkg="snoomba" type="Gui.py" respawn="true">
+    </node>
+
+    <!-- ROS NODES (Utility) -->
+<!--
+    <node name="slam_gmapping" pkg="gmapping" type="slam_gmapping" respawn="true">
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" respawn="true">
+    </node>
+
+    <node name="rqt_graph" pkg="rqt_graph" type="rqt_graph" respawn="true">
+    </node>
+-->    
+</launch>

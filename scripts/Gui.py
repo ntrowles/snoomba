@@ -3,6 +3,8 @@
 import Tkinter
 import rospy
 import std_msgs
+import nav_msgs
+import sensor_msgs
 import Image
 from PIL import ImageTk
 import urllib
@@ -17,6 +19,9 @@ from GuiLayout import GuiLayout
 import requests
 import json
 
+from lidar_lite import Lidar_Lite
+
+
 #import GuiListener
 #import GuiTalker
 
@@ -25,6 +30,16 @@ EARTH_RADIUS = 6378137
 EQUATOR_CIRCUMFERENCE = 2 * pi * EARTH_RADIUS
 INITIAL_RESOLUTION = EQUATOR_CIRCUMFERENCE / 256.0
 ORIGIN_SHIFT = EQUATOR_CIRCUMFERENCE / 2.0
+
+
+class GPS_Point:
+    def __init__ (self, lat, lon, mode):
+        self.lat = lat
+        self.lon = lon
+        self.mode = mode
+
+    def __str__(self):
+        return "Lat: " + str(self.lat) + ", Lon: " + str(self.lon) + ", Mode: " + str(self.mode)
 
 
 class Gui:
@@ -38,6 +53,12 @@ class Gui:
         # Create Talkers for system commands and boundary info
         self.scPub = rospy.Publisher('SystemCommands', std_msgs.msg.String, queue_size=10)
         self.biPub = rospy.Publisher('BoundaryInfo', std_msgs.msg.String, queue_size=10)
+
+        # Create GPS Globals
+        self.gps_buffer = [0] * 250
+        self.gps_buffer_index = 0
+        self.lat_offset = 0.10918536
+        self.lon_offset = -0.321672352
         
         # Create Window
         window = Tkinter.Tk()
@@ -156,11 +177,11 @@ class Gui:
         self.consoleframe.grid_propagate(0)
 
         # Command History
-        self.cf_history_text = Tkinter.Text(self.consoleframe, height = 24, width = 36, bg="black")
+        self.cf_history_text = Tkinter.Text(self.consoleframe, height = 24, width = 36, bg="black", fg="green")
         self.cf_history_text.grid(row=0, column=0, columnspan = 2)
 
         # Command Line Entry
-        self.cf_command_entry = Tkinter.Entry(self.consoleframe, bg="black")
+        self.cf_command_entry = Tkinter.Entry(self.consoleframe, bg="black", fg="green")
         self.cf_command_entry.grid(row=1, column=0)
 
         # Command Line Button
@@ -180,7 +201,18 @@ class Gui:
         # Stop Button
         self.sys_stop_button = Tkinter.Button(self.systemframe, text="Stop", bg="red", command=self.sysStopButtonClick)
         self.sys_stop_button.grid(row=1, column=0)
-        
+
+        # GPS Test Button
+        self.sys_gpstest_button = Tkinter.Button(self.systemframe, text="GPS Test", bg="blue", command=self.sysGpstestButtonClick)
+        self.sys_gpstest_button.grid(row=2, column=0)
+
+        # Lidar_Lite instance (for testing only, not needed in final code)
+        #self.lidar_lite = Lidar_Lite()
+        #errno = self.lidar_lite.connect(1)
+        #print(errno)
+        ## TODO fix i2c setup
+        #distance = self.lidar_lite.getDistance()
+        #print(distance)
         
         # ------------------------
         # Image in label
@@ -203,9 +235,24 @@ class Gui:
 
     def miCallback(self, data):
         rospy.loginfo("Map-Info received" + data.data)
+        print("Map-Info received" + data.data)
 
-    def scPubMsg(self, msg="SetMotor 1 0 40 30"):
-        print("Button Pressed!")
+        # Parse data to get parameters
+        datalist = data.data.split(" ")
+        if(datalist[0] == "UpdatePosition"):
+            print("Update Position function requested")
+            if (len(datalist)==4 and isfloat(datalist[1]) and isfloat(datalist[2])):
+                # Extract parameters and send them to gpio controller function
+                print("Updating position buffer")
+                self.gps_buffer_index = self.wrap_index(self.gps_buffer_index + 1)
+                self.gps_buffer[self.gps_buffer_index] = GPS_Point(float(datalist[1]) + self.lat_offset, float(datalist[2]) + self.lon_offset, str(datalist[3]))
+            else:
+                print("Incorrect number of commands and/or command types sent to motor controller")
+        else:
+            print("Ignoring command: " + data)
+
+    def scPubMsg(self, msg):
+        #print("Button Pressed!")
         self.scPub.publish(msg)
 
     def biPubMsg(self, msg="No Message"):
@@ -436,7 +483,16 @@ class Gui:
 
     def commandEntryButtonClick(self):
         # TODO implement method
-        print("unimplemented mehtod: commandEntryButtonClick(self))")
+        print("implementing mehtod: commandEntryButtonClick(self))")
+        command = self.cf_command_entry.get()
+        self.cf_history_text.insert(Tkinter.END, "\n"+command)
+
+        command_parts = command.split(" ")
+        if(command_parts[0] == "pub_msg"):
+            print("implementing publ_msg callback")
+        else:
+            print("improper command: " + command)
+        
 
     def sysStartButtonClick(self):
         # TODO implement method
@@ -445,6 +501,122 @@ class Gui:
     def sysStopButtonClick(self):
         # TODO implement method
         print("unimplemented mehtod: sysStopButtonClick(self))")
+
+    def sysGpstestButtonClick(self):
+        most_recent_points = [None] * 50 # create list of size 100
+        # Copy over 50 most recent points from 
+        finLen = 0
+        for i in range(0, len(most_recent_points)):
+            #if(self.gps_buffer[self.wrap_index(self.gps_buffer_index-i)] #TODO fix error of it sending blank list if 100 samples haven't been taken
+            most_recent_points[i] = self.gps_buffer[self.wrap_index(self.gps_buffer_index-i)]
+            print("i: " + str(i) + "   " + str(most_recent_points[i]))
+        self.displayPoints(most_recent_points)
+
+    def wrap_index(self, index):
+        new_index = index % 250
+        return new_index
+
+    def displayPoints(self, most_recent_points):
+        
+        # Create Window
+        sub_window = Tkinter.Toplevel()
+        sub_window.geometry('{}x{}'.format(1080, 720))
+        
+        # Initialize GUI
+        # self.layout = GuiLayout(window, self)
+        sub_window.title("GPS Test")
+
+        # Create top left frame for GUI (user selected map)
+        #self.topleftframe = Tkinter.Frame(window, bg="red", height=360, width=480)
+        #self.topleftframe.grid(row=0, column=2)
+
+        # Create canvas in frame
+        sub_canvas = Tkinter.Canvas(sub_window, width=1080, height=720)
+        sub_canvas.grid(row=0, column=0)
+        # Set boundaries for canvas
+        sub_canvas_x_min=0
+        sub_canvas_y_min=0
+        sub_canvas_x_max=1080
+        sub_canvas_y_max=720
+
+
+        lat_total = 0.0
+        lon_total = 0.0
+        lat_min = most_recent_points[0].lat
+        lat_max = most_recent_points[0].lat
+        lon_min = most_recent_points[0].lon
+        lon_max = most_recent_points[0].lon
+        # Go thru points
+        for i in range(0, len(most_recent_points)):
+            cur_gps_point = most_recent_points[i]
+            lat_total += cur_gps_point.lat
+            lon_total += cur_gps_point.lon
+
+            if(cur_gps_point.lat < lat_min):
+                lat_min = cur_gps_point.lat
+            elif(cur_gps_point.lat > lat_max):
+                lat_max = cur_gps_point.lat
+
+            if(cur_gps_point.lon < lon_min):
+                lon_min = cur_gps_point.lon
+            elif(cur_gps_point.lon > lon_max):
+                lon_max = cur_gps_point.lon
+
+        lat_avg = float(lat_total)/float(len(most_recent_points))
+        lon_avg = float(lon_total)/float(len(most_recent_points))
+
+        # Initialize self.zoomval to be 23 -> Start with max zoom, zoom out until all points fit picture
+        zoomval = 21
+        latval = lat_avg
+        lonval = lon_avg
+        # Calculate GPS coordinates
+        (px_center, py_center) = latlontopixels(latval, lonval, zoomval)
+        px_left = px_center - ((sub_canvas_x_min+sub_canvas_x_max)/2)
+        px_right = px_center + ((sub_canvas_x_min+sub_canvas_x_max)/2)
+        py_up = py_center + ((sub_canvas_y_min+sub_canvas_y_max)/2)
+        py_down = py_center - ((sub_canvas_y_min+sub_canvas_y_max)/2)
+        (lat_up, lon_left) = pixelstolatlon(px_left, py_up, zoomval)
+        (lat_down, lon_right)= pixelstolatlon(px_right, py_down, zoomval)
+        #centeroffset_x = px - ((self._canvas_x_min+self._canvas_x_max)/2)
+        #centeroffset_y = py - ((self._canvas_y_min+self._canvas_y_max)/2)
+        #px_actual = px_center - centeroffset_x
+        #py_actual = py_center - centeroffset_y
+        #gps_differential = pixelstolatlon(px_actual, py_actual, self.zoomval)
+        while(lat_max>lat_up or lat_min<lat_down or lon_min<lon_left or lon_max>lon_right):
+            zoomval -= 1
+            print("Zoomval: " + str(zoomval) + ", lat_up: " + str(lat_up) + ", lat_down: " + str(lat_down) + ", lon_left: " + str(lon_left) + ", lon_right" + str(lon_right))
+            print("lat_max: " + str(lat_max) + ", lat_min: " + str(lat_min) + ", lon_min: " + str(lon_min) + ", lon_max: " + str(lon_max))
+            (px_center, py_center) = latlontopixels(latval, lonval, zoomval)
+            px_left = px_center - ((sub_canvas_x_min+sub_canvas_x_max)/2)
+            px_right = px_center + ((sub_canvas_x_min+sub_canvas_x_max)/2)
+            py_up = py_center + ((sub_canvas_y_min+sub_canvas_y_max)/2)
+            py_down = py_center - ((sub_canvas_y_min+sub_canvas_y_max)/2)
+            (lat_up, lon_left) = pixelstolatlon(px_left, py_up, zoomval)
+            (lat_down, lon_right) = pixelstolatlon(px_right, py_down, zoomval)
+        
+        # Google maps image
+
+        image = self.googleApiRetrieveStaticImage(latval, lonval, 1080, 720, zoomval)
+        photoImage = ImageTk.PhotoImage(image)
+
+        # Draw picture
+        mapPic = sub_canvas.create_image((540,360), image=photoImage, tags="static")
+        # Draw tokens
+        for i in range(0, len(most_recent_points)):
+            cur_gps_point = most_recent_points[i]
+            (px_abs, py_abs) = latlontopixels(cur_gps_point.lat, cur_gps_point.lon, zoomval)
+            px = 540 - (px_center - px_abs)
+            py = 360 - (py_center - py_abs)
+
+            
+            if(cur_gps_point.mode == "A"):
+                sub_canvas.create_oval(px-3, py-3, px+3, py+3, outline="red", fill="red", tags="fenceCorner")
+            elif(cur_gps_point.mode == "D"):
+                sub_canvas.create_oval(px-3, py-3, px+3, py+3, outline="blue", fill="blue", tags="fenceCorner")
+            
+
+
+        sub_window.mainloop()
 
     def appendToLog(self):
         # TODO implement method
@@ -480,6 +652,8 @@ class Gui:
 #    def latlontopixels(lat, lon, zoom):
 #        mx = (latlon
 
+
+
 # from http://stackoverflow.com/questions/7490491/capture-embedded-google-map-image-with-python-without-using-a-browser
 ###########################################
 
@@ -504,6 +678,16 @@ def pixelstolatlon(px, py, zoom):
     lon = (mx / ORIGIN_SHIFT) * 180.0
     return lat, lon
 
+
+
+############################################
+# from http://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
 ############################################
 
